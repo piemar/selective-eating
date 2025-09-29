@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Sparkles, Heart, Search, Database, Loader2 } from 'lucide-react';
 import FoodCard from '@/components/FoodCard';

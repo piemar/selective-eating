@@ -1,3 +1,4 @@
+import React from 'react';
 import { Heart, MessageCircle, Star, User } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 

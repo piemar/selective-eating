@@ -1,9 +1,23 @@
 // API configuration and utilities for backend communication
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8083/api/v1';
+// Get API base URL from environment variable with fallback
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8081/api/v1';
+
+// Log the API configuration for debugging
+console.log('🌐 API Configuration:', {
+  baseUrl: API_BASE_URL,
+  isMockMode: import.meta.env.VITE_USE_MOCK_DATA === 'true',
+  environment: import.meta.env.MODE
+});
 
 // Configuration for mock mode
 const USE_MOCK_DATA = import.meta.env.VITE_USE_MOCK_DATA === 'true' || false;
+
+// Helper function to get backend base URL (without /api/v1)
+const getBackendBaseUrl = (): string => {
+  const baseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8081/api/v1';
+  return baseUrl.replace('/api/v1', '');
+};
 
 // Console indicator for developers
 if (USE_MOCK_DATA) {
@@ -291,15 +305,20 @@ export const api = {
 // Helper function to get food image URL
 export const getFoodImageUrl = (food: Food): string => {
   if (food.imageUrl) {
-    // Images are served by the backend ImageController
+    // Images are now served from frontend public assets
     // The imageUrl field contains the path like "image/foods/1_Bos_taurus.jpg"
-    // Backend has context-path: /api, so we need to prefix with /api
-    const baseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8083/api/v1';
-    const backendBaseUrl = baseUrl.replace('/api/v1', ''); // Remove the API version to get base backend URL
-    return `${backendBaseUrl}/${food.imageUrl}`;
+    // We need to convert it to "/assets/foods/filename.jpg"
+    const filename = food.imageUrl.replace('image/foods/', '');
+    return `/assets/foods/${filename}`;
   }
-  // Fallback to generate a consistent placeholder based on food number
-  return `https://via.placeholder.com/64/f3f4f6/9ca3af?text=${encodeURIComponent(food.name.charAt(0).toUpperCase())}`;
+  // Fallback to generate a consistent placeholder based on food name
+  const firstLetter = food.name.charAt(0).toUpperCase();
+  return `data:image/svg+xml;base64,${btoa(`
+    <svg width="64" height="64" xmlns="http://www.w3.org/2000/svg">
+      <circle cx="32" cy="32" r="30" fill="#f3f4f6" stroke="#9ca3af" stroke-width="2"/>
+      <text x="32" y="40" text-anchor="middle" font-family="Arial, sans-serif" font-size="24" font-weight="bold" fill="#6b7280">${firstLetter}</text>
+    </svg>
+  `)}`;
 };
 
 // Helper function to format food name for display
@@ -320,9 +339,17 @@ export const getUserId = (): string => {
 // Helper function to get suggestion image URL
 export const getSuggestionImageUrl = (suggestion: FoodSuggestion): string => {
   if (suggestion.imageUrl) {
-    return `http://localhost:8083/api/${suggestion.imageUrl}`;
+    // Images are now served from frontend public assets
+    const filename = suggestion.imageUrl.replace('image/foods/', '');
+    return `/assets/foods/${filename}`;
   }
-  return `https://via.placeholder.com/64/f3f4f6/9ca3af?text=${encodeURIComponent(suggestion.foodName.charAt(0).toUpperCase())}`;
+  const firstLetter = suggestion.foodName.charAt(0).toUpperCase();
+  return `data:image/svg+xml;base64,${btoa(`
+    <svg width="64" height="64" xmlns="http://www.w3.org/2000/svg">
+      <circle cx="32" cy="32" r="30" fill="#f3f4f6" stroke="#9ca3af" stroke-width="2"/>
+      <text x="32" y="40" text-anchor="middle" font-family="Arial, sans-serif" font-size="24" font-weight="bold" fill="#6b7280">${firstLetter}</text>
+    </svg>
+  `)}`;
 };
 
 // Helper function to create food tags from category

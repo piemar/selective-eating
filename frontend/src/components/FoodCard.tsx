@@ -1,3 +1,5 @@
+import React, { useState } from 'react';
+
 interface FoodCardProps {
   name: string;
   image: string;
@@ -17,6 +19,25 @@ export default function FoodCard({
   className = '',
   onError
 }: FoodCardProps) {
+  const [imageError, setImageError] = useState(false);
+  const [currentImage, setCurrentImage] = useState(image);
+
+  const handleImageError = (e: React.SyntheticEvent<HTMLImageElement>) => {
+    if (!imageError) {
+      setImageError(true);
+      // Use a data URL for a simple colored circle with the first letter
+      const firstLetter = name.charAt(0).toUpperCase();
+      const dataUrl = `data:image/svg+xml;base64,${btoa(`
+        <svg width="64" height="64" xmlns="http://www.w3.org/2000/svg">
+          <circle cx="32" cy="32" r="30" fill="#f3f4f6" stroke="#9ca3af" stroke-width="2"/>
+          <text x="32" y="40" text-anchor="middle" font-family="Arial, sans-serif" font-size="24" font-weight="bold" fill="#6b7280">${firstLetter}</text>
+        </svg>
+      `)}`;
+      setCurrentImage(dataUrl);
+    }
+    onError?.(e);
+  };
+
   return (
     <div
       onClick={onClick}
@@ -29,9 +50,9 @@ export default function FoodCard({
     >
       <div className="aspect-square mb-4 flex items-center justify-center">
         <img 
-          src={image} 
+          src={currentImage} 
           alt={name}
-          onError={onError}
+          onError={handleImageError}
           className="w-16 h-16 object-contain group-hover:scale-110 transition-transform duration-300"
         />
       </div>
