@@ -331,7 +331,7 @@ Button.displayName = 'Button'
 - Maintain test data builders and fixtures for consistent test setup
 
 ### Deployment & DevOps
-- Prefer Vercel for frontend + backend hosting.
+- Prefer Railway for frontend + backend hosting.
 - Connect MongoDB Atlas with IP allowlisting or VPC peering.
 - GitHub Actions should handle CI (lint, test, build).
 - Always include Infrastructure as Code for DB setup (Terraform preferred).
