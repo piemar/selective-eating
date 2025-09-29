@@ -24,7 +24,12 @@ export default defineConfig(({ mode }) => {
       port: parseInt(process.env.VITE_DEV_PORT || "8080"),
       allowedHosts,
     },
-    plugins: [react(), isDev && componentTagger()].filter(Boolean),
+    plugins: [
+      react({
+        jsxImportSource: 'react'
+      }), 
+      isDev && componentTagger()
+    ].filter(Boolean),
     resolve: {
       alias: {
         "@": path.resolve(__dirname, "./src"),
