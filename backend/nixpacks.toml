@@ -1,0 +1,9 @@
+[variables]
+NIXPACKS_JDK_VERSION = "21"
+MAVEN_OPTS = "-Xmx512m"
+
+[phases.build] 
+cmds = ["./mvnw clean package -DskipTests"]
+
+[phases.start]
+cmd = "java -Dserver.port=$PORT -jar target/selective-eating-backend-0.0.1-SNAPSHOT.jar"
