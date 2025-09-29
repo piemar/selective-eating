@@ -178,18 +178,4 @@ public class FoodService {
             .sorted()
             .collect(Collectors.toList());
     }
-    
-    /**
-     * Get total food count.
-     */
-    public long getTotalFoodCount() {
-        return foodRepository.count();
-    }
-    
-    /**
-     * Get food count by language.
-     */
-    public long getFoodCountByLanguage(String language) {
-        return foodRepository.findByLanguage(language).size();
-    }
 }
