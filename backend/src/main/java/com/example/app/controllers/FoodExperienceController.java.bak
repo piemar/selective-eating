@@ -1,0 +1,256 @@
+package com.example.app.controllers;
+
+import com.example.app.models.Child;
+import com.example.app.models.Food;
+import com.example.app.models.FoodExperience;
+import com.example.app.services.ChildService;
+import com.example.app.services.FoodExperienceService;
+import com.example.app.services.FoodService;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
+import java.util.Optional;
+
+@RestController
+@RequestMapping("/api/v1/food-experiences")
+@CrossOrigin(origins = {"http://localhost:8080", "http://localhost:5173"})
+public class FoodExperienceController {
+
+    private final FoodExperienceService foodExperienceService;
+    private final ChildService childService;
+    private final FoodService foodService;
+
+    @Autowired
+    public FoodExperienceController(FoodExperienceService foodExperienceService, 
+                                   ChildService childService, 
+                                   FoodService foodService) {
+        this.foodExperienceService = foodExperienceService;
+        this.childService = childService;
+        this.foodService = foodService;
+    }
+
+    // Basic CRUD operations
+    @GetMapping
+    public List<FoodExperience> getAllExperiences() {
+        return foodExperienceService.getAllExperiences();
+    }
+
+    @GetMapping("/{id}")
+    public ResponseEntity<FoodExperience> getExperienceById(@PathVariable String id) {
+        Optional<FoodExperience> experience = foodExperienceService.getExperienceById(id);
+        return experience.map(ResponseEntity::ok)
+                        .orElse(ResponseEntity.notFound().build());
+    }
+
+    @PostMapping
+    public ResponseEntity<FoodExperience> createExperience(@RequestBody FoodExperience experience) {
+        try {
+            FoodExperience createdExperience = foodExperienceService.createFoodExperience(experience);
+            return ResponseEntity.ok(createdExperience);
+        } catch (RuntimeException e) {
+            return ResponseEntity.badRequest().build();
+        }
+    }
+
+    @PutMapping("/{id}")
+    public ResponseEntity<FoodExperience> updateExperience(@PathVariable String id, @RequestBody FoodExperience experienceDetails) {
+        try {
+            FoodExperience updatedExperience = foodExperienceService.updateFoodExperience(id, experienceDetails);
+            return ResponseEntity.ok(updatedExperience);
+        } catch (RuntimeException e) {
+            return ResponseEntity.notFound().build();
+        }
+    }
+
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Void> deleteExperience(@PathVariable String id) {
+        try {
+            foodExperienceService.deleteFoodExperience(id);
+            return ResponseEntity.noContent().build();
+        } catch (RuntimeException e) {
+            return ResponseEntity.notFound().build();
+        }
+    }
+
+    // Child-based operations
+    @GetMapping("/child/{childId}")
+    public ResponseEntity<List<FoodExperience>> getExperiencesByChild(@PathVariable String childId) {
+        List<FoodExperience> experiences = foodExperienceService.getExperiencesByChildId(childId);
+        return ResponseEntity.ok(experiences);
+    }
+
+    @GetMapping("/child/{childId}/paged")
+    public ResponseEntity<Page<FoodExperience>> getExperiencesByChildPaged(@PathVariable String childId, Pageable pageable) {
+        Optional<Child> child = childService.getChildById(childId);
+        if (child.isPresent()) {
+            Page<FoodExperience> experiences = foodExperienceService.getExperiencesByChild(child.get(), pageable);
+            return ResponseEntity.ok(experiences);
+        }
+        return ResponseEntity.notFound().build();
+    }
+
+    // Food-based operations
+    @GetMapping("/food/{foodId}")
+    public ResponseEntity<List<FoodExperience>> getExperiencesByFood(@PathVariable String foodId) {
+        Optional<Food> food = foodService.getFoodById(foodId);
+        if (food.isPresent()) {
+            List<FoodExperience> experiences = foodExperienceService.getExperiencesByFood(food.get());
+            return ResponseEntity.ok(experiences);
+        }
+        return ResponseEntity.notFound().build();
+    }
+
+    // Specific experience lookup
+    @GetMapping("/child/{childId}/food/{foodId}")
+    public ResponseEntity<FoodExperience> getExperienceByChildAndFood(@PathVariable String childId, @PathVariable String foodId) {
+        Optional<Child> child = childService.getChildById(childId);
+        Optional<Food> food = foodService.getFoodById(foodId);
+        
+        if (child.isPresent() && food.isPresent()) {
+            Optional<FoodExperience> experience = foodExperienceService.getExperienceByChildAndFood(child.get(), food.get());
+            return experience.map(ResponseEntity::ok)
+                           .orElse(ResponseEntity.notFound().build());
+        }
+        return ResponseEntity.badRequest().build();
+    }
+
+    // Rating-based queries
+    @GetMapping("/rating/{rating}")
+    public List<FoodExperience> getExperiencesByRating(@PathVariable Integer rating) {
+        return foodExperienceService.getExperiencesByRating(rating);
+    }
+
+    @GetMapping("/child/{childId}/positive")
+    public ResponseEntity<List<FoodExperience>> getPositiveExperiences(@PathVariable String childId) {
+        Optional<Child> child = childService.getChildById(childId);
+        if (child.isPresent()) {
+            List<FoodExperience> experiences = foodExperienceService.getPositiveExperiences(child.get());
+            return ResponseEntity.ok(experiences);
+        }
+        return ResponseEntity.notFound().build();
+    }
+
+    @GetMapping("/child/{childId}/negative")
+    public ResponseEntity<List<FoodExperience>> getNegativeExperiences(@PathVariable String childId) {
+        Optional<Child> child = childService.getChildById(childId);
+        if (child.isPresent()) {
+            List<FoodExperience> experiences = foodExperienceService.getNegativeExperiences(child.get());
+            return ResponseEntity.ok(experiences);
+        }
+        return ResponseEntity.notFound().build();
+    }
+
+    @GetMapping("/child/{childId}/first-time")
+    public ResponseEntity<List<FoodExperience>> getFirstTimeExperiences(@PathVariable String childId) {
+        Optional<Child> child = childService.getChildById(childId);
+        if (child.isPresent()) {
+            List<FoodExperience> experiences = foodExperienceService.getFirstTimeExperiences(child.get());
+            return ResponseEntity.ok(experiences);
+        }
+        return ResponseEntity.notFound().build();
+    }
+
+    // Recent experiences
+    @GetMapping("/child/{childId}/recent")
+    public ResponseEntity<List<FoodExperience>> getRecentExperiences(
+            @PathVariable String childId, 
+            @RequestParam(defaultValue = "7") int days) {
+        Optional<Child> child = childService.getChildById(childId);
+        if (child.isPresent()) {
+            List<FoodExperience> experiences = foodExperienceService.getRecentExperiences(child.get(), days);
+            return ResponseEntity.ok(experiences);
+        }
+        return ResponseEntity.notFound().build();
+    }
+
+    @GetMapping("/child/{childId}/recent/paged")
+    public ResponseEntity<Page<FoodExperience>> getRecentExperiencesPaged(
+            @PathVariable String childId, 
+            @RequestParam(defaultValue = "7") int days,
+            Pageable pageable) {
+        Optional<Child> child = childService.getChildById(childId);
+        if (child.isPresent()) {
+            Page<FoodExperience> experiences = foodExperienceService.getRecentExperiences(child.get(), days, pageable);
+            return ResponseEntity.ok(experiences);
+        }
+        return ResponseEntity.notFound().build();
+    }
+
+    // Statistics endpoints
+    @GetMapping("/child/{childId}/stats/count")
+    public ResponseEntity<Long> getExperienceCount(@PathVariable String childId) {
+        Optional<Child> child = childService.getChildById(childId);
+        if (child.isPresent()) {
+            Long count = foodExperienceService.getExperienceCount(child.get());
+            return ResponseEntity.ok(count);
+        }
+        return ResponseEntity.notFound().build();
+    }
+
+    @GetMapping("/child/{childId}/stats/positive-rate")
+    public ResponseEntity<Double> getPositiveReactionRate(@PathVariable String childId) {
+        Optional<Child> child = childService.getChildById(childId);
+        if (child.isPresent()) {
+            Double rate = foodExperienceService.getPositiveReactionRate(child.get());
+            return ResponseEntity.ok(rate);
+        }
+        return ResponseEntity.notFound().build();
+    }
+
+    @GetMapping("/child/{childId}/stats/positive-count")
+    public ResponseEntity<Long> getPositiveExperienceCount(@PathVariable String childId) {
+        Optional<Child> child = childService.getChildById(childId);
+        if (child.isPresent()) {
+            Long count = foodExperienceService.getPositiveExperienceCount(child.get());
+            return ResponseEntity.ok(count);
+        }
+        return ResponseEntity.notFound().build();
+    }
+
+    @GetMapping("/child/{childId}/stats/negative-count")
+    public ResponseEntity<Long> getNegativeExperienceCount(@PathVariable String childId) {
+        Optional<Child> child = childService.getChildById(childId);
+        if (child.isPresent()) {
+            Long count = foodExperienceService.getNegativeExperienceCount(child.get());
+            return ResponseEntity.ok(count);
+        }
+        return ResponseEntity.notFound().build();
+    }
+
+    @GetMapping("/child/{childId}/stats/first-time-count")
+    public ResponseEntity<Long> getFirstTimeExperienceCount(@PathVariable String childId) {
+        Optional<Child> child = childService.getChildById(childId);
+        if (child.isPresent()) {
+            Long count = foodExperienceService.getFirstTimeExperienceCount(child.get());
+            return ResponseEntity.ok(count);
+        }
+        return ResponseEntity.notFound().build();
+    }
+
+    @GetMapping("/child/{childId}/stats/this-week")
+    public ResponseEntity<Long> getExperiencesThisWeek(@PathVariable String childId) {
+        Optional<Child> child = childService.getChildById(childId);
+        if (child.isPresent()) {
+            Long count = foodExperienceService.getExperiencesThisWeek(child.get());
+            return ResponseEntity.ok(count);
+        }
+        return ResponseEntity.notFound().build();
+    }
+
+    // Utility endpoints
+    @GetMapping("/child/{childId}/has-tried/{foodId}")
+    public ResponseEntity<Boolean> hasChildTriedFood(@PathVariable String childId, @PathVariable String foodId) {
+        Optional<Child> child = childService.getChildById(childId);
+        Optional<Food> food = foodService.getFoodById(foodId);
+        
+        if (child.isPresent() && food.isPresent()) {
+            Boolean hasTried = foodExperienceService.hasChildTriedFood(child.get(), food.get());
+            return ResponseEntity.ok(hasTried);
+        }
+        return ResponseEntity.badRequest().build();
+    }
+}

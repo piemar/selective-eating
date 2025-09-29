@@ -1,0 +1,277 @@
+package com.example.app.controllers;
+
+import com.example.app.models.Child;
+import com.example.app.models.Food;
+import com.example.app.services.ChildService;
+import com.example.app.services.FoodService;
+import com.example.app.services.SuggestionService;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
+import java.util.Optional;
+
+@RestController
+@RequestMapping("/api/v1/suggestions")
+@CrossOrigin(origins = {"http://localhost:8080", "http://localhost:5173"})
+public class SuggestionController {
+
+    private final SuggestionService suggestionService;
+    private final ChildService childService;
+    private final FoodService foodService;
+
+    @Autowired
+    public SuggestionController(SuggestionService suggestionService, 
+                               ChildService childService, 
+                               FoodService foodService) {
+        this.suggestionService = suggestionService;
+        this.childService = childService;
+        this.foodService = foodService;
+    }
+
+    /**
+     * Generate personalized food suggestions for a child based on their preferences and experiences
+     */
+    @GetMapping("/child/{childId}")
+    public ResponseEntity<List<Food>> generateSuggestions(
+            @PathVariable String childId,
+            @RequestParam(defaultValue = "5") int maxSuggestions) {
+        
+        Optional<Child> child = childService.getChildById(childId);
+        if (child.isPresent()) {
+            List<Food> suggestions = suggestionService.generateSuggestions(child.get(), maxSuggestions);
+            return ResponseEntity.ok(suggestions);
+        }
+        return ResponseEntity.notFound().build();
+    }
+
+    /**
+     * Generate suggestions based on a specific food the child likes
+     */
+    @GetMapping("/child/{childId}/based-on-food/{foodId}")
+    public ResponseEntity<List<Food>> generateSuggestionsBasedOnFood(
+            @PathVariable String childId,
+            @PathVariable String foodId,
+            @RequestParam(defaultValue = "5") int maxSuggestions) {
+        
+        Optional<Child> child = childService.getChildById(childId);
+        Optional<Food> food = foodService.getFoodById(foodId);
+        
+        if (child.isPresent() && food.isPresent()) {
+            List<Food> suggestions = suggestionService.generateSuggestionsBasedOnFood(food.get(), child.get(), maxSuggestions);
+            return ResponseEntity.ok(suggestions);
+        }
+        return ResponseEntity.badRequest().build();
+    }
+
+    /**
+     * Get beginner-friendly food suggestions for children just starting their food journey
+     */
+    @GetMapping("/child/{childId}/beginner")
+    public ResponseEntity<List<Food>> getBeginnerSuggestions(
+            @PathVariable String childId,
+            @RequestParam(defaultValue = "5") int maxSuggestions) {
+        
+        Optional<Child> child = childService.getChildById(childId);
+        if (child.isPresent()) {
+            List<Food> suggestions = suggestionService.getBeginnerSuggestions(child.get(), maxSuggestions);
+            return ResponseEntity.ok(suggestions);
+        }
+        return ResponseEntity.notFound().build();
+    }
+
+    /**
+     * Get suggestions for expanding into a new food category
+     */
+    @GetMapping("/child/{childId}/category/{category}")
+    public ResponseEntity<List<Food>> getCategorySuggestions(
+            @PathVariable String childId,
+            @PathVariable String category,
+            @RequestParam(defaultValue = "5") int maxSuggestions) {
+        
+        Optional<Child> child = childService.getChildById(childId);
+        if (child.isPresent()) {
+            List<Food> suggestions = suggestionService.getCategorySuggestions(category, child.get(), maxSuggestions);
+            return ResponseEntity.ok(suggestions);
+        }
+        return ResponseEntity.notFound().build();
+    }
+
+    /**
+     * Get suggestions based on multiple selected foods (like in the frontend)
+     */
+    @PostMapping("/child/{childId}/based-on-foods")
+    public ResponseEntity<List<Food>> generateSuggestionsBasedOnFoods(
+            @PathVariable String childId,
+            @RequestBody List<String> foodIds,
+            @RequestParam(defaultValue = "5") int maxSuggestions) {
+        
+        Optional<Child> child = childService.getChildById(childId);
+        if (child.isPresent()) {
+            // Get suggestions based on each liked food and combine them
+            List<Food> allSuggestions = foodIds.stream()
+                .map(foodService::getFoodById)
+                .filter(Optional::isPresent)
+                .map(Optional::get)
+                .flatMap(food -> suggestionService.generateSuggestionsBasedOnFood(food, child.get(), maxSuggestions).stream())
+                .distinct()
+                .limit(maxSuggestions)
+                .toList();
+            
+            return ResponseEntity.ok(allSuggestions);
+        }
+        return ResponseEntity.notFound().build();
+    }
+
+    /**
+     * Get suggestions for foods with specific properties
+     */
+    @PostMapping("/child/{childId}/by-properties")
+    public ResponseEntity<List<Food>> getSuggestionsByProperties(
+            @PathVariable String childId,
+            @RequestParam(required = false) List<String> textures,
+            @RequestParam(required = false) List<String> flavors,
+            @RequestParam(required = false) List<String> categories,
+            @RequestParam(defaultValue = "5") int maxSuggestions) {
+        
+        Optional<Child> child = childService.getChildById(childId);
+        if (child.isPresent()) {
+            // Find foods with similar properties
+            List<Food> similarFoods = foodService.findSimilarFoods(
+                textures != null ? textures : List.of(),
+                flavors != null ? flavors : List.of(),
+                List.of() // visual properties
+            );
+
+            // Filter for child safety and preferences, then limit results
+            List<Food> suggestions = similarFoods.stream()
+                .limit(maxSuggestions)
+                .toList();
+            
+            return ResponseEntity.ok(suggestions);
+        }
+        return ResponseEntity.notFound().build();
+    }
+
+    /**
+     * Get suggestions avoiding specific allergens and textures
+     */
+    @PostMapping("/child/{childId}/safe")
+    public ResponseEntity<List<Food>> getSafeSuggestions(
+            @PathVariable String childId,
+            @RequestBody List<String> avoidAllergens,
+            @RequestParam(required = false) List<String> avoidTextures,
+            @RequestParam(defaultValue = "5") int maxSuggestions) {
+        
+        Optional<Child> child = childService.getChildById(childId);
+        if (child.isPresent()) {
+            // Get safe foods excluding allergens
+            List<Food> safeFoods = foodService.getFoodsWithoutAllergens(avoidAllergens);
+            
+            // Further filter by avoiding specific textures
+            if (avoidTextures != null && !avoidTextures.isEmpty()) {
+                safeFoods = safeFoods.stream()
+                    .filter(food -> food.getTextureProperties() == null || 
+                                  food.getTextureProperties().stream().noneMatch(avoidTextures::contains))
+                    .toList();
+            }
+            
+            List<Food> suggestions = safeFoods.stream()
+                .limit(maxSuggestions)
+                .toList();
+            
+            return ResponseEntity.ok(suggestions);
+        }
+        return ResponseEntity.notFound().build();
+    }
+
+    /**
+     * Get suggestions for foods in multiple categories
+     */
+    @PostMapping("/child/{childId}/categories")
+    public ResponseEntity<List<Food>> getSuggestionsByCategories(
+            @PathVariable String childId,
+            @RequestBody List<String> categories,
+            @RequestParam(defaultValue = "5") int maxSuggestions) {
+        
+        Optional<Child> child = childService.getChildById(childId);
+        if (child.isPresent()) {
+            // Combine suggestions from all requested categories
+            List<Food> suggestions = categories.stream()
+                .flatMap(category -> suggestionService.getCategorySuggestions(category, child.get(), maxSuggestions / categories.size() + 1).stream())
+                .distinct()
+                .limit(maxSuggestions)
+                .toList();
+            
+            return ResponseEntity.ok(suggestions);
+        }
+        return ResponseEntity.notFound().build();
+    }
+
+    /**
+     * Get emergency/fallback suggestions (simple, commonly accepted foods)
+     */
+    @GetMapping("/child/{childId}/fallback")
+    public ResponseEntity<List<Food>> getFallbackSuggestions(
+            @PathVariable String childId,
+            @RequestParam(defaultValue = "3") int maxSuggestions) {
+        
+        Optional<Child> child = childService.getChildById(childId);
+        if (child.isPresent()) {
+            // Get non-allergenic, mild foods
+            List<Food> fallbackFoods = foodService.getNonAllergenicFoods()
+                .stream()
+                .filter(food -> food.getFlavorProperties() != null && 
+                              food.getFlavorProperties().contains("Mild"))
+                .limit(maxSuggestions)
+                .toList();
+            
+            return ResponseEntity.ok(fallbackFoods);
+        }
+        return ResponseEntity.notFound().build();
+    }
+
+    /**
+     * Endpoint to mimic the frontend functionality - get suggestions based on selected food IDs
+     */
+    @PostMapping("/generate")
+    public ResponseEntity<List<Food>> generateSuggestionsFromSelection(
+            @RequestParam(required = false) String childId,
+            @RequestBody List<Integer> selectedFoodIds,
+            @RequestParam(defaultValue = "3") int maxSuggestions) {
+        
+        // Convert integer IDs to string IDs and get foods
+        List<Food> selectedFoods = selectedFoodIds.stream()
+            .map(id -> foodService.getFoodById(String.valueOf(id)))
+            .filter(Optional::isPresent)
+            .map(Optional::get)
+            .toList();
+        
+        if (selectedFoods.isEmpty()) {
+            return ResponseEntity.badRequest().build();
+        }
+        
+        Optional<Child> child = childId != null ? childService.getChildById(childId) : Optional.empty();
+        
+        if (child.isPresent()) {
+            // Get personalized suggestions based on selected foods
+            List<Food> suggestions = selectedFoods.stream()
+                .flatMap(food -> suggestionService.generateSuggestionsBasedOnFood(food, child.get(), maxSuggestions).stream())
+                .distinct()
+                .limit(maxSuggestions)
+                .toList();
+            
+            return ResponseEntity.ok(suggestions);
+        } else {
+            // Generic suggestions based on selected foods without child context
+            List<Food> suggestions = selectedFoods.stream()
+                .flatMap(food -> foodService.findSimilarFoodsBasedOnFood(food).stream())
+                .distinct()
+                .limit(maxSuggestions)
+                .toList();
+            
+            return ResponseEntity.ok(suggestions);
+        }
+    }
+}

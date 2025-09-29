@@ -1,0 +1,12 @@
+data-generation/.DS_Store
+data-generation/stable-diffusion-webui/.DS_Store
+backend/app.log
+backend/app2.log
+backend/src/main/java/com/example/app/.DS_Store
+backend/src/.DS_Store
+backend/.DS_Store
+frontend/.DS_Store
+frontend/node_modules
+frontend/dist
+frontend/build
+frontend/.DS_Store

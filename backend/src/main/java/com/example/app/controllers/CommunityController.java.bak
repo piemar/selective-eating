@@ -1,0 +1,295 @@
+package com.example.app.controllers;
+
+import com.example.app.models.CommunityPost;
+import com.example.app.models.Food;
+import com.example.app.models.User;
+import com.example.app.services.CommunityService;
+import com.example.app.services.FoodService;
+import com.example.app.services.UserService;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
+import java.util.Optional;
+
+@RestController
+@RequestMapping("/api/v1/community")
+@CrossOrigin(origins = {"http://localhost:8080", "http://localhost:5173"})
+public class CommunityController {
+
+    private final CommunityService communityService;
+    private final UserService userService;
+    private final FoodService foodService;
+
+    @Autowired
+    public CommunityController(CommunityService communityService, UserService userService, FoodService foodService) {
+        this.communityService = communityService;
+        this.userService = userService;
+        this.foodService = foodService;
+    }
+
+    // Basic CRUD operations
+    @GetMapping("/posts")
+    public Page<CommunityPost> getAllPosts(Pageable pageable) {
+        return communityService.getAllPosts(pageable);
+    }
+
+    @GetMapping("/posts/{id}")
+    public ResponseEntity<CommunityPost> getPostById(@PathVariable String id) {
+        Optional<CommunityPost> post = communityService.getPostById(id);
+        return post.map(ResponseEntity::ok)
+                  .orElse(ResponseEntity.notFound().build());
+    }
+
+    @PostMapping("/posts")
+    public ResponseEntity<CommunityPost> createPost(@RequestBody CommunityPost post) {
+        try {
+            CommunityPost createdPost = communityService.createPost(post);
+            return ResponseEntity.ok(createdPost);
+        } catch (RuntimeException e) {
+            return ResponseEntity.badRequest().build();
+        }
+    }
+
+    @PutMapping("/posts/{id}")
+    public ResponseEntity<CommunityPost> updatePost(@PathVariable String id, @RequestBody CommunityPost postDetails) {
+        try {
+            CommunityPost updatedPost = communityService.updatePost(id, postDetails);
+            return ResponseEntity.ok(updatedPost);
+        } catch (RuntimeException e) {
+            return ResponseEntity.notFound().build();
+        }
+    }
+
+    @DeleteMapping("/posts/{id}")
+    public ResponseEntity<Void> deletePost(@PathVariable String id) {
+        try {
+            communityService.deletePost(id);
+            return ResponseEntity.noContent().build();
+        } catch (RuntimeException e) {
+            return ResponseEntity.notFound().build();
+        }
+    }
+
+    // Author-based operations
+    @GetMapping("/posts/author/{authorId}")
+    public ResponseEntity<Page<CommunityPost>> getPostsByAuthor(@PathVariable String authorId, Pageable pageable) {
+        Optional<User> author = userService.getUserById(authorId);
+        if (author.isPresent()) {
+            Page<CommunityPost> posts = communityService.getPostsByAuthor(author.get(), pageable);
+            return ResponseEntity.ok(posts);
+        }
+        return ResponseEntity.notFound().build();
+    }
+
+    @GetMapping("/posts/author/email/{email}")
+    public ResponseEntity<Page<CommunityPost>> getPostsByAuthorEmail(@PathVariable String email, Pageable pageable) {
+        Optional<User> author = userService.getUserByEmail(email);
+        if (author.isPresent()) {
+            Page<CommunityPost> posts = communityService.getPostsByAuthor(author.get(), pageable);
+            return ResponseEntity.ok(posts);
+        }
+        return ResponseEntity.notFound().build();
+    }
+
+    // Type and category operations
+    @GetMapping("/posts/type/{postType}")
+    public Page<CommunityPost> getPostsByType(@PathVariable String postType, Pageable pageable) {
+        return communityService.getPostsByType(postType, pageable);
+    }
+
+    @GetMapping("/posts/food/{foodId}")
+    public ResponseEntity<List<CommunityPost>> getPostsByFood(@PathVariable String foodId) {
+        Optional<Food> food = foodService.getFoodById(foodId);
+        if (food.isPresent()) {
+            List<CommunityPost> posts = communityService.getPostsByFood(food.get());
+            return ResponseEntity.ok(posts);
+        }
+        return ResponseEntity.notFound().build();
+    }
+
+    // Tag-based operations
+    @GetMapping("/posts/tag/{tag}")
+    public Page<CommunityPost> getPostsByTag(@PathVariable String tag, Pageable pageable) {
+        return communityService.getPostsByTag(tag, pageable);
+    }
+
+    @PostMapping("/posts/tags/search")
+    public Page<CommunityPost> getPostsByTags(@RequestBody List<String> tags, Pageable pageable) {
+        return communityService.getPostsByTags(tags, pageable);
+    }
+
+    // Time-based queries
+    @GetMapping("/posts/recent")
+    public Page<CommunityPost> getRecentPosts(@RequestParam(defaultValue = "7") int days, Pageable pageable) {
+        return communityService.getRecentPosts(days, pageable);
+    }
+
+    @GetMapping("/posts/trending")
+    public Page<CommunityPost> getTrendingPosts(
+            @RequestParam(defaultValue = "7") int days, 
+            @RequestParam(defaultValue = "5") int minLikes,
+            Pageable pageable) {
+        return communityService.getTrendingPosts(days, minLikes, pageable);
+    }
+
+    @GetMapping("/posts/popular")
+    public Page<CommunityPost> getPopularPosts(@RequestParam(defaultValue = "10") int minLikes, Pageable pageable) {
+        return communityService.getPopularPosts(minLikes, pageable);
+    }
+
+    @GetMapping("/posts/most-engaged")
+    public Page<CommunityPost> getMostEngagedPosts(Pageable pageable) {
+        return communityService.getMostEngagedPosts(pageable);
+    }
+
+    // Search operations
+    @GetMapping("/posts/search")
+    public Page<CommunityPost> searchPosts(@RequestParam String query, Pageable pageable) {
+        return communityService.searchPosts(query, pageable);
+    }
+
+    // Engagement operations
+    @PostMapping("/posts/{id}/like")
+    public ResponseEntity<CommunityPost> likePost(@PathVariable String id) {
+        try {
+            CommunityPost updatedPost = communityService.likePost(id);
+            return ResponseEntity.ok(updatedPost);
+        } catch (RuntimeException e) {
+            return ResponseEntity.notFound().build();
+        }
+    }
+
+    @DeleteMapping("/posts/{id}/like")
+    public ResponseEntity<CommunityPost> unlikePost(@PathVariable String id) {
+        try {
+            CommunityPost updatedPost = communityService.unlikePost(id);
+            return ResponseEntity.ok(updatedPost);
+        } catch (RuntimeException e) {
+            return ResponseEntity.notFound().build();
+        }
+    }
+
+    @PostMapping("/posts/{id}/comment")
+    public ResponseEntity<CommunityPost> incrementComments(@PathVariable String id) {
+        try {
+            CommunityPost updatedPost = communityService.incrementComments(id);
+            return ResponseEntity.ok(updatedPost);
+        } catch (RuntimeException e) {
+            return ResponseEntity.notFound().build();
+        }
+    }
+
+    @DeleteMapping("/posts/{id}/comment")
+    public ResponseEntity<CommunityPost> decrementComments(@PathVariable String id) {
+        try {
+            CommunityPost updatedPost = communityService.decrementComments(id);
+            return ResponseEntity.ok(updatedPost);
+        } catch (RuntimeException e) {
+            return ResponseEntity.notFound().build();
+        }
+    }
+
+    @PostMapping("/posts/{id}/share")
+    public ResponseEntity<CommunityPost> sharePost(@PathVariable String id) {
+        try {
+            CommunityPost updatedPost = communityService.sharePost(id);
+            return ResponseEntity.ok(updatedPost);
+        } catch (RuntimeException e) {
+            return ResponseEntity.notFound().build();
+        }
+    }
+
+    // Moderation operations (admin only)
+    @GetMapping("/moderation/posts")
+    public Page<CommunityPost> getAllPostsForModeration(Pageable pageable) {
+        return communityService.getAllPostsForModeration(pageable);
+    }
+
+    @GetMapping("/moderation/posts/flagged")
+    public List<CommunityPost> getPostsNeedingModeration() {
+        return communityService.getPostsNeedingModeration();
+    }
+
+    @PostMapping("/moderation/posts/{id}/approve")
+    public ResponseEntity<CommunityPost> approvePost(@PathVariable String id) {
+        try {
+            CommunityPost updatedPost = communityService.approvePost(id);
+            return ResponseEntity.ok(updatedPost);
+        } catch (RuntimeException e) {
+            return ResponseEntity.notFound().build();
+        }
+    }
+
+    @PostMapping("/moderation/posts/{id}/flag")
+    public ResponseEntity<CommunityPost> flagPost(@PathVariable String id, @RequestParam String reason) {
+        try {
+            CommunityPost updatedPost = communityService.flagPost(id, reason);
+            return ResponseEntity.ok(updatedPost);
+        } catch (RuntimeException e) {
+            return ResponseEntity.notFound().build();
+        }
+    }
+
+    // Statistics endpoints
+    @GetMapping("/stats/total-posts")
+    public Long getTotalPostCount() {
+        return communityService.getTotalPostCount();
+    }
+
+    @GetMapping("/stats/author/{authorId}/post-count")
+    public ResponseEntity<Long> getPostCountByAuthor(@PathVariable String authorId) {
+        Optional<User> author = userService.getUserById(authorId);
+        if (author.isPresent()) {
+            Long count = communityService.getPostCountByAuthor(author.get());
+            return ResponseEntity.ok(count);
+        }
+        return ResponseEntity.notFound().build();
+    }
+
+    @GetMapping("/stats/type/{postType}/count")
+    public Long getPostCountByType(@PathVariable String postType) {
+        return communityService.getPostCountByType(postType);
+    }
+
+    @GetMapping("/stats/recent/count")
+    public Long getRecentPostCount(@RequestParam(defaultValue = "7") int days) {
+        return communityService.getRecentPostCount(days);
+    }
+
+    @GetMapping("/stats/approved/count")
+    public Long getApprovedPostCount() {
+        return communityService.getApprovedPostCount();
+    }
+
+    @GetMapping("/stats/author/{authorId}/activity")
+    public ResponseEntity<Long> getUserPostCountInTimeframe(
+            @PathVariable String authorId, 
+            @RequestParam(defaultValue = "30") int days) {
+        Optional<User> author = userService.getUserById(authorId);
+        if (author.isPresent()) {
+            Long count = communityService.getUserPostCountInTimeframe(author.get(), days);
+            return ResponseEntity.ok(count);
+        }
+        return ResponseEntity.notFound().build();
+    }
+
+    // Food rating related posts
+    @GetMapping("/posts/with-ratings")
+    public Page<CommunityPost> getPostsWithFoodRatings(Pageable pageable) {
+        return communityService.getPostsWithFoodRatings(pageable);
+    }
+
+    @GetMapping("/posts/rating/{rating}")
+    public List<CommunityPost> getPostsByFoodRating(@PathVariable Integer rating) {
+        return communityService.getPostsByFoodRating(rating);
+    }
+
+    @GetMapping("/posts/rating/{minRating}/to/{maxRating}")
+    public List<CommunityPost> getPostsByFoodRatingRange(@PathVariable Integer minRating, @PathVariable Integer maxRating) {
+        return communityService.getPostsByFoodRatingRange(minRating, maxRating);
+    }
+}

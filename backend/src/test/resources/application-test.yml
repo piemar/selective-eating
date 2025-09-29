@@ -1,0 +1,28 @@
+spring:
+  profiles:
+    active: test
+  data:
+    mongodb:
+      database: selective_eating_test
+  security:
+    user:
+      name: admin
+      password: admin
+
+server:
+  port: 0  # Random port for tests
+
+logging:
+  level:
+    com.example.app: DEBUG
+    org.springframework.test: DEBUG
+    org.testcontainers: INFO
+
+app:
+  jwt:
+    access-secret: test-256-bit-secret-for-access-tokens-make-it-long-enough-for-testing
+    refresh-secret: test-256-bit-secret-for-refresh-tokens-make-it-different-enough
+    access-ttl-seconds: 900
+    refresh-ttl-seconds: 604800
+  cors:
+    allowed-origins: http://localhost:3000,http://localhost:8080

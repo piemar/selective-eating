@@ -1,0 +1,300 @@
+package com.example.app.services;
+
+import com.example.app.models.Child;
+import com.example.app.models.Food;
+import com.example.app.models.FoodExperience;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
+
+import java.util.*;
+import java.util.stream.Collectors;
+
+@Service
+public class SuggestionService {
+
+    private final FoodService foodService;
+    private final FoodExperienceService foodExperienceService;
+
+    @Autowired
+    public SuggestionService(FoodService foodService, FoodExperienceService foodExperienceService) {
+        this.foodService = foodService;
+        this.foodExperienceService = foodExperienceService;
+    }
+
+    /**
+     * Generate food suggestions for a child based on their preferences and experiences
+     */
+    public List<Food> generateSuggestions(Child child, int maxSuggestions) {
+        List<Food> suggestions = new ArrayList<>();
+        
+        // Get child's liked foods to understand preferences
+        List<String> likedFoodIds = child.getLikedFoodIds() != null ? child.getLikedFoodIds() : new ArrayList<>();
+        List<Food> likedFoods = likedFoodIds.stream()
+            .map(foodService::getFoodById)
+            .filter(Optional::isPresent)
+            .map(Optional::get)
+            .collect(Collectors.toList());
+
+        // Get positive food experiences
+        List<FoodExperience> positiveExperiences = foodExperienceService.getPositiveExperiences(child);
+        
+        // Extract preferences from liked foods and positive experiences
+        List<String> preferredTextures = extractPreferredTextures(likedFoods, positiveExperiences, child);
+        List<String> preferredFlavors = extractPreferredFlavors(likedFoods, positiveExperiences, child);
+        List<String> preferredVisuals = extractPreferredVisuals(likedFoods, positiveExperiences, child);
+
+        // Find similar foods based on preferences
+        List<Food> similarFoods = foodService.findSimilarFoods(preferredTextures, preferredFlavors, preferredVisuals);
+
+        // Filter out foods already tried and disliked
+        Set<String> triedFoodIds = getTriedFoodIds(child);
+        Set<String> dislikedFoodIds = new HashSet<>(child.getDislikedFoodIds() != null ? child.getDislikedFoodIds() : new ArrayList<>());
+        
+        suggestions = similarFoods.stream()
+            .filter(food -> !triedFoodIds.contains(food.getId()))
+            .filter(food -> !dislikedFoodIds.contains(food.getId()))
+            .filter(food -> isSafeForChild(food, child))
+            .collect(Collectors.toList());
+
+        // If not enough suggestions, add foods from preferred categories
+        if (suggestions.size() < maxSuggestions) {
+            List<String> preferredCategories = extractPreferredCategories(likedFoods);
+            final List<Food> currentSuggestions = suggestions; // Make a final reference for lambda
+            List<Food> categoryFoods = preferredCategories.stream()
+                .flatMap(category -> foodService.getFoodsByCategory(category).stream())
+                .filter(food -> !triedFoodIds.contains(food.getId()))
+                .filter(food -> !dislikedFoodIds.contains(food.getId()))
+                .filter(food -> isSafeForChild(food, child))
+                .filter(food -> !currentSuggestions.contains(food))
+                .collect(Collectors.toList());
+            
+            suggestions.addAll(categoryFoods);
+        }
+
+        // Score and rank suggestions
+        List<ScoredFood> scoredSuggestions = suggestions.stream()
+            .map(food -> new ScoredFood(food, calculateSuggestionScore(food, child, preferredTextures, preferredFlavors)))
+            .sorted((a, b) -> Double.compare(b.score, a.score))
+            .collect(Collectors.toList());
+
+        return scoredSuggestions.stream()
+            .limit(maxSuggestions)
+            .map(sf -> sf.food)
+            .collect(Collectors.toList());
+    }
+
+    /**
+     * Generate suggestions based on a specific food the child likes
+     */
+    public List<Food> generateSuggestionsBasedOnFood(Food referenceFood, Child child, int maxSuggestions) {
+        List<Food> similarFoods = foodService.findSimilarFoodsBasedOnFood(referenceFood);
+        
+        Set<String> triedFoodIds = getTriedFoodIds(child);
+        Set<String> dislikedFoodIds = new HashSet<>(child.getDislikedFoodIds() != null ? child.getDislikedFoodIds() : new ArrayList<>());
+        
+        return similarFoods.stream()
+            .filter(food -> !triedFoodIds.contains(food.getId()))
+            .filter(food -> !dislikedFoodIds.contains(food.getId()))
+            .filter(food -> isSafeForChild(food, child))
+            .limit(maxSuggestions)
+            .collect(Collectors.toList());
+    }
+
+    /**
+     * Get beginner-friendly food suggestions for children just starting their food journey
+     */
+    public List<Food> getBeginnerSuggestions(Child child, int maxSuggestions) {
+        // Focus on commonly accepted, non-allergenic foods with mild flavors
+        List<Food> beginnerFoods = foodService.getNonAllergenicFoods().stream()
+            .filter(food -> isSafeForChild(food, child))
+            .filter(food -> hasMildFlavor(food))
+            .filter(food -> isBeginner(food))
+            .collect(Collectors.toList());
+
+        return beginnerFoods.stream()
+            .limit(maxSuggestions)
+            .collect(Collectors.toList());
+    }
+
+    /**
+     * Get suggestions for expanding into a new food category
+     */
+    public List<Food> getCategorySuggestions(String category, Child child, int maxSuggestions) {
+        List<Food> categoryFoods = foodService.getFoodsByCategory(category);
+        
+        Set<String> triedFoodIds = getTriedFoodIds(child);
+        Set<String> dislikedFoodIds = new HashSet<>(child.getDislikedFoodIds() != null ? child.getDislikedFoodIds() : new ArrayList<>());
+        
+        return categoryFoods.stream()
+            .filter(food -> !triedFoodIds.contains(food.getId()))
+            .filter(food -> !dislikedFoodIds.contains(food.getId()))
+            .filter(food -> isSafeForChild(food, child))
+            .sorted((a, b) -> compareFoodsForChild(a, b, child))
+            .limit(maxSuggestions)
+            .collect(Collectors.toList());
+    }
+
+    // Helper methods
+    private List<String> extractPreferredTextures(List<Food> likedFoods, List<FoodExperience> positiveExperiences, Child child) {
+        Set<String> textures = new HashSet<>();
+        
+        // From child's stated preferences
+        if (child.getPreferredTextures() != null) {
+            textures.addAll(child.getPreferredTextures());
+        }
+        
+        // From liked foods
+        likedFoods.stream()
+            .filter(food -> food.getTextureProperties() != null)
+            .forEach(food -> textures.addAll(food.getTextureProperties()));
+        
+        // From positive experiences
+        positiveExperiences.stream()
+            .map(exp -> exp.getFood())
+            .filter(food -> food.getTextureProperties() != null)
+            .forEach(food -> textures.addAll(food.getTextureProperties()));
+        
+        return new ArrayList<>(textures);
+    }
+
+    private List<String> extractPreferredFlavors(List<Food> likedFoods, List<FoodExperience> positiveExperiences, Child child) {
+        Set<String> flavors = new HashSet<>();
+        
+        // From child's stated preferences
+        if (child.getPreferredFlavors() != null) {
+            flavors.addAll(child.getPreferredFlavors());
+        }
+        
+        // From liked foods
+        likedFoods.stream()
+            .filter(food -> food.getFlavorProperties() != null)
+            .forEach(food -> flavors.addAll(food.getFlavorProperties()));
+        
+        // From positive experiences
+        positiveExperiences.stream()
+            .map(exp -> exp.getFood())
+            .filter(food -> food.getFlavorProperties() != null)
+            .forEach(food -> flavors.addAll(food.getFlavorProperties()));
+        
+        return new ArrayList<>(flavors);
+    }
+
+    private List<String> extractPreferredVisuals(List<Food> likedFoods, List<FoodExperience> positiveExperiences, Child child) {
+        Set<String> visuals = new HashSet<>();
+        
+        likedFoods.stream()
+            .filter(food -> food.getVisualProperties() != null)
+            .forEach(food -> visuals.addAll(food.getVisualProperties()));
+        
+        positiveExperiences.stream()
+            .map(exp -> exp.getFood())
+            .filter(food -> food.getVisualProperties() != null)
+            .forEach(food -> visuals.addAll(food.getVisualProperties()));
+        
+        return new ArrayList<>(visuals);
+    }
+
+    private List<String> extractPreferredCategories(List<Food> likedFoods) {
+        return likedFoods.stream()
+            .filter(food -> food.getCategories() != null)
+            .flatMap(food -> food.getCategories().stream())
+            .distinct()
+            .collect(Collectors.toList());
+    }
+
+    private Set<String> getTriedFoodIds(Child child) {
+        List<FoodExperience> experiences = foodExperienceService.getExperiencesByChild(child);
+        return experiences.stream()
+            .map(exp -> exp.getFood().getId())
+            .collect(Collectors.toSet());
+    }
+
+    private boolean isSafeForChild(Food food, Child child) {
+        // Check for allergens
+        if (child.getAllergens() != null && food.getAllergens() != null) {
+            for (String allergen : child.getAllergens()) {
+                if (food.getAllergens().contains(allergen)) {
+                    return false;
+                }
+            }
+        }
+        
+        // Check for avoided textures
+        if (child.getAvoidedTextures() != null && food.getTextureProperties() != null) {
+            for (String avoidedTexture : child.getAvoidedTextures()) {
+                if (food.getTextureProperties().contains(avoidedTexture)) {
+                    return false;
+                }
+            }
+        }
+        
+        return true;
+    }
+
+    private double calculateSuggestionScore(Food food, Child child, List<String> preferredTextures, List<String> preferredFlavors) {
+        double score = 0.0;
+        
+        // Score based on texture matches
+        if (food.getTextureProperties() != null) {
+            long textureMatches = food.getTextureProperties().stream()
+                .filter(preferredTextures::contains)
+                .count();
+            score += textureMatches * 2.0;
+        }
+        
+        // Score based on flavor matches
+        if (food.getFlavorProperties() != null) {
+            long flavorMatches = food.getFlavorProperties().stream()
+                .filter(preferredFlavors::contains)
+                .count();
+            score += flavorMatches * 1.5;
+        }
+        
+        // Bonus for non-allergenic foods
+        if (!food.getIsCommonAllergen()) {
+            score += 1.0;
+        }
+        
+        // Penalty for foods with many allergens
+        if (food.getAllergens() != null) {
+            score -= food.getAllergens().size() * 0.5;
+        }
+        
+        return score;
+    }
+
+    private boolean hasMildFlavor(Food food) {
+        return food.getFlavorProperties() != null && 
+               food.getFlavorProperties().contains("Mild");
+    }
+
+    private boolean isBeginner(Food food) {
+        // Could be based on tags or categories that indicate beginner-friendly foods
+        return food.getTags() != null && 
+               (food.getTags().contains("beginner") || 
+                food.getTags().contains("mild") || 
+                food.getTags().contains("common"));
+    }
+
+    private int compareFoodsForChild(Food a, Food b, Child child) {
+        // Simple comparison - could be enhanced with more sophisticated scoring
+        double scoreA = calculateSuggestionScore(a, child, 
+            child.getPreferredTextures() != null ? child.getPreferredTextures() : new ArrayList<>(),
+            child.getPreferredFlavors() != null ? child.getPreferredFlavors() : new ArrayList<>());
+        double scoreB = calculateSuggestionScore(b, child,
+            child.getPreferredTextures() != null ? child.getPreferredTextures() : new ArrayList<>(),
+            child.getPreferredFlavors() != null ? child.getPreferredFlavors() : new ArrayList<>());
+        return Double.compare(scoreB, scoreA);
+    }
+
+    // Helper class for scoring
+    private static class ScoredFood {
+        final Food food;
+        final double score;
+        
+        ScoredFood(Food food, double score) {
+            this.food = food;
+            this.score = score;
+        }
+    }
+}

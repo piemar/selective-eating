@@ -1,0 +1,269 @@
+package com.example.app.services;
+
+import com.example.app.models.FoodOptimized;
+import com.example.app.models.FoodCategoriesEnhanced;
+import com.example.app.repositories.FoodOptimizedRepository;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.stereotype.Service;
+
+import java.util.List;
+import java.util.Optional;
+import java.util.stream.Collectors;
+
+/**
+ * Service for optimized food operations using the enhanced classification system.
+ * 
+ * This service provides high-level operations on the foods_optimized_enhanced collection
+ * with efficient queries and easy access to classification data.
+ */
+@Service
+public class FoodOptimizedService {
+    
+    @Autowired
+    private FoodOptimizedRepository foodRepository;
+    
+    // ===== BASIC FOOD OPERATIONS =====
+    
+    /**
+     * Get food by nummer (unique ID) in specific language.
+     */
+    public Optional<FoodOptimized> getFoodByNummer(Integer nummer, String language) {
+        return foodRepository.findByNummerAndLanguage(nummer, language);
+    }
+    
+    /**
+     * Get both Swedish and English versions of a food by nummer.
+     */
+    public List<FoodOptimized> getFoodVersions(Integer nummer) {
+        return foodRepository.findByNummer(nummer);
+    }
+    
+    /**
+     * Search foods by name (case insensitive).
+     */
+    public List<FoodOptimized> searchFoodsByName(String name) {
+        return foodRepository.findByNameContainingIgnoreCase(name);
+    }
+    
+    /**
+     * Get all English foods (for UI).
+     */
+    public List<FoodOptimized> getEnglishFoods() {
+        return foodRepository.findByLanguage("en");
+    }
+    
+    /**
+     * Get English foods with pagination.
+     */
+    public Page<FoodOptimized> getEnglishFoods(Pageable pageable) {
+        return foodRepository.findByLanguage("en", pageable);
+    }
+    
+    // ===== CATEGORY-BASED QUERIES =====
+    
+    /**
+     * Get foods by main category (e.g., "Other fats", "Fruits").
+     */
+    public List<FoodOptimized> getFoodsByMainCategory(String mainCategory) {
+        return foodRepository.findByMainCategoryContaining(mainCategory);
+    }
+    
+    /**
+     * Get animal products.
+     */
+    public List<FoodOptimized> getAnimalProducts() {
+        return foodRepository.findAnimalProducts();
+    }
+    
+    /**
+     * Get plant-based products.
+     */
+    public List<FoodOptimized> getPlantBasedProducts() {
+        return foodRepository.findPlantBasedProducts();
+    }
+    
+    /**
+     * Get foods by product type (LanguaL A. PRODUCT TYPE).
+     */
+    public List<FoodOptimized> getFoodsByProductType(String productType) {
+        return foodRepository.findByProductType(productType);
+    }
+    
+    /**
+     * Get foods by food source (LanguaL B. FOOD SOURCE).
+     */
+    public List<FoodOptimized> getFoodsBySource(String source) {
+        return foodRepository.findByFoodSource(source);
+    }
+    
+    // ===== COMPLIANCE AND REGULATORY =====
+    
+    /**
+     * Find foods by LanguaL facet code (fasettkod).
+     */
+    public List<FoodOptimized> getFoodsByFacetCode(String facetCode) {
+        return foodRepository.findByFacetCode(facetCode);
+    }
+    
+    /**
+     * Find foods by LanguaL ID.
+     */
+    public List<FoodOptimized> getFoodsByLangualId(String langualId) {
+        return foodRepository.findByLangualId(langualId);
+    }
+    
+    /**
+     * Find foods by FoodEx2 code.
+     */
+    public List<FoodOptimized> getFoodsByFoodEx2Code(String foodEx2Code) {
+        return foodRepository.findByFoodEx2Code(foodEx2Code);
+    }
+    
+    /**
+     * Get compliance summary for a food.
+     */
+    public String getFoodComplianceSummary(Integer nummer, String language) {
+        Optional<FoodOptimized> food = getFoodByNummer(nummer, language);
+        if (food.isPresent() && food.get().getCategories() != null) {
+            return food.get().getCategories().getComplianceSummary();
+        }
+        return "No compliance data available";
+    }
+    
+    // ===== IMAGE-RELATED OPERATIONS =====
+    
+    /**
+     * Get foods that have generated images.
+     */
+    public List<FoodOptimized> getFoodsWithImages() {
+        return foodRepository.findFoodsWithImages();
+    }
+    
+    /**
+     * Get foods that need images generated (English only).
+     */
+    public List<FoodOptimized> getFoodsNeedingImages() {
+        return foodRepository.findFoodsNeedingImages();
+    }
+    
+    /**
+     * Count foods with images.
+     */
+    public Long countFoodsWithImages() {
+        return foodRepository.countFoodsWithImages();
+    }
+    
+    // ===== DIETARY FILTERING =====
+    
+    /**
+     * Filter foods for dietary restrictions.
+     */
+    public List<FoodOptimized> getFoodsForDiet(String diet, String language) {
+        List<FoodOptimized> foods = foodRepository.findByLanguage(language);
+        
+        return foods.stream()
+                .filter(food -> {
+                    if (food.getCategories() == null) return true;
+                    
+                    switch (diet.toLowerCase()) {
+                        case "vegetarian":
+                            return !food.getCategories().isAnimalProduct();
+                        case "vegan":
+                            return food.getCategories().isPlantBased();
+                        case "animal_products":
+                            return food.getCategories().isAnimalProduct();
+                        default:
+                            return true;
+                    }
+                })
+                .collect(Collectors.toList());
+    }
+    
+    // ===== STATISTICS =====
+    
+    /**
+     * Get category statistics.
+     */
+    public CategoryStats getCategoryStats() {
+        List<FoodOptimized> englishFoods = getEnglishFoods();
+        
+        long animalProducts = englishFoods.stream()
+                .filter(food -> food.getCategories() != null)
+                .filter(food -> food.getCategories().isAnimalProduct())
+                .count();
+        
+        long plantProducts = englishFoods.stream()
+                .filter(food -> food.getCategories() != null)
+                .filter(food -> food.getCategories().isPlantBased())
+                .count();
+        
+        long withImages = englishFoods.stream()
+                .filter(food -> food.getImageUrl() != null && !food.getImageUrl().isEmpty())
+                .count();
+        
+        return new CategoryStats(
+                englishFoods.size(),
+                animalProducts,
+                plantProducts,
+                withImages
+        );
+    }
+    
+    /**
+     * Get main categories with counts.
+     */
+    public List<CategoryCount> getMainCategoryCounts() {
+        List<FoodOptimized> englishFoods = getEnglishFoods();
+        
+        return englishFoods.stream()
+                .filter(food -> food.getCategories() != null)
+                .filter(food -> food.getCategories().getMain() != null)
+                .collect(Collectors.groupingBy(
+                        food -> food.getCategories().getMain(),
+                        Collectors.counting()
+                ))
+                .entrySet().stream()
+                .map(entry -> new CategoryCount(entry.getKey(), entry.getValue()))
+                .sorted((a, b) -> Long.compare(b.getCount(), a.getCount()))
+                .collect(Collectors.toList());
+    }
+    
+    // ===== UTILITY CLASSES =====
+    
+    public static class CategoryStats {
+        private final long totalFoods;
+        private final long animalProducts;
+        private final long plantProducts;
+        private final long withImages;
+        
+        public CategoryStats(long totalFoods, long animalProducts, long plantProducts, long withImages) {
+            this.totalFoods = totalFoods;
+            this.animalProducts = animalProducts;
+            this.plantProducts = plantProducts;
+            this.withImages = withImages;
+        }
+        
+        // Getters
+        public long getTotalFoods() { return totalFoods; }
+        public long getAnimalProducts() { return animalProducts; }
+        public long getPlantProducts() { return plantProducts; }
+        public long getWithImages() { return withImages; }
+        public long getOtherProducts() { return totalFoods - animalProducts - plantProducts; }
+    }
+    
+    public static class CategoryCount {
+        private final String category;
+        private final long count;
+        
+        public CategoryCount(String category, long count) {
+            this.category = category;
+            this.count = count;
+        }
+        
+        // Getters
+        public String getCategory() { return category; }
+        public long getCount() { return count; }
+    }
+}

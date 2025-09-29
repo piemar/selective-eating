@@ -1,0 +1,545 @@
+# Cursor AI Rules - Selective Eating Project
+
+## Project Architecture
+This is an enterprise-ready application with clear frontend/backend separation:
+
+### Frontend (UI Layer)
+- **Primary Tool**: Use loveable.dev for creating and prototyping UI components
+- **Framework**: React 18 with TypeScript
+- **Build Tool**: Vite for fast development and optimized builds
+- **Styling**: Tailwind CSS with semantic design tokens
+- **Component Library**: shadcn/ui with Radix UI primitives
+- **Navigation**: React Router for client-side routing
+- **Data Fetching**: React Query for server state management
+- **Component Structure**: Atomic design principles (atoms, molecules, organisms, templates, pages)
+- **State Management**: React Query for server state, React built-in state for UI state, Context for shared UI state
+
+### Backend (API/Business Logic Layer)
+- **Framework**: Spring Boot 3.x with Java 17+
+- **Security**: Spring Security for authentication and authorization
+- **Database**: MongoDB Atlas with Spring Data MongoDB
+- **Architecture**: Clean Architecture (Controller → Service → Repository → Model)
+- **API Design**: RESTful APIs with versioned endpoints (/api/v1/*), OpenAPI/Swagger via springdoc-openapi
+- **Authentication**: JWT access + refresh tokens with Spring Security filters
+- **Validation**: Jakarta Bean Validation for request/response validation
+- **Error Handling**: Centralized error handling with @ControllerAdvice
+- **Testing**: JUnit 5 + Spring Boot Test + Testcontainers for MongoDB
+
+## File Structure & Organization
+
+Current project structure with Lovable.dev best practices:
+
+```
+project-root/
+├── frontend/               # React 18 + Vite frontend application
+│   ├── src/
+│   │   ├── components/     # Reusable UI components (PascalCase naming)
+│   │   │   ├── ui/        # shadcn/ui components
+│   │   │   ├── atoms/     # Basic building blocks
+│   │   │   ├── molecules/ # Simple component groups
+│   │   │   └── organisms/ # Complex UI sections
+│   │   ├── pages/         # Route components (PascalCase naming)
+│   │   ├── hooks/         # Custom React hooks (use* prefix)
+│   │   ├── lib/           # Utility functions and configurations
+│   │   ├── assets/        # Static assets (kebab-case naming)
+│   │   ├── types/         # TypeScript type definitions
+│   │   └── constants/     # Application constants
+│   ├── public/            # Static assets served directly
+│   ├── package.json       # Node.js dependencies and scripts
+│   ├── vite.config.ts     # Vite configuration
+│   ├── tailwind.config.ts # Tailwind CSS configuration
+│   ├── tsconfig.json      # TypeScript configuration
+│   └── index.html         # HTML entry point
+├── backend/               # Spring Boot API server
+│   ├── src/main/java/com/example/app/
+│   │   ├── controllers/   # @RestController classes for request handling
+│   │   ├── services/      # @Service classes for business logic
+│   │   ├── repositories/  # MongoRepository interfaces for data access
+│   │   ├── models/        # @Document classes for MongoDB entities
+│   │   ├── config/        # Configuration classes and @ConfigurationProperties
+│   │   ├── security/      # Spring Security configuration and JWT utilities
+│   │   └── exceptions/    # Custom exceptions and @ControllerAdvice
+│   ├── src/main/resources/
+│   │   ├── application.yml # Spring Boot configuration
+│   │   └── application-*.yml # Environment-specific configs
+│   ├── src/test/java/     # JUnit tests with Testcontainers
+│   ├── pom.xml            # Maven dependencies and build configuration
+│   └── Dockerfile         # Multi-stage Docker build
+├── shared/                # Shared types and utilities
+├── docs/                  # Documentation
+├── docker/                # Docker configuration
+└── .cursorrules          # Project-specific AI coding rules
+```
+
+### Development Workflow
+- **Frontend Development**: Navigate to `frontend/` directory and run `npm run dev`
+- **Backend Development**: Navigate to `backend/` directory and run `./mvnw spring-boot:run`
+- **Full Stack**: Use docker-compose from project root to run both together
+- **API Documentation**: Available at `http://localhost:8081/api/swagger-ui.html` when backend is running
+
+### Import Organization Rules
+- Group imports in order: React/external libraries, internal components, utils, types
+- Use absolute imports with `@/` alias when configured
+- Prefer named imports over default imports where possible
+- Example:
+```typescript
+import React from 'react'
+import { QueryClient } from '@tanstack/react-query'
+
+import { Button } from '@/components/ui/button'
+import { UserCard } from '@/components/UserCard'
+
+import { formatDate } from '@/lib/utils'
+import { User } from '@/types/user'
+```
+
+## Environment Configuration
+
+### Frontend Environment Variables
+- `NEXT_PUBLIC_APP_NAME` - Application name for branding
+- `NEXT_PUBLIC_API_BASE_URL` - Backend API base URL
+
+### Backend Environment Variables
+- `SPRING_PROFILES_ACTIVE` - Active Spring profile (dev, test, prod)
+- `SPRING_DATA_MONGODB_URI` - MongoDB Atlas connection string
+- `SPRING_DATA_MONGODB_DATABASE` - MongoDB database name
+- `JWT_ACCESS_SECRET` - JWT access token secret key
+- `JWT_REFRESH_SECRET` - JWT refresh token secret key
+- `JWT_ACCESS_TTL_SECONDS` - Access token TTL in seconds
+- `JWT_REFRESH_TTL_SECONDS` - Refresh token TTL in seconds
+- `CORS_ALLOW_ORIGINS` - Comma-separated list of allowed CORS origins
+- `LOG_LEVEL` - Application logging level
+
+### Configuration Rules
+- Frontend: `.env.example` in `frontend/` directory for documentation
+- Backend: `application-example.yml` in `backend/src/main/resources/` for documentation
+- Validate environment variables in Spring Boot using `@ConfigurationProperties`
+- Never log secrets or sensitive configuration values
+- Use different configuration profiles for different environments
+
+## UI Development with loveable.dev
+- **Design First**: Always prototype UI components in loveable.dev before implementation
+- **Component Export**: Export loveable.dev designs as clean React components
+- **Consistency**: Maintain design system consistency across all UI elements
+- **Responsive**: Ensure all components work across desktop, tablet, and mobile
+- **Accessibility**: Follow WCAG 2.1 guidelines for accessibility
+
+## Design System & Styling
+- **CRITICAL**: ALWAYS use semantic design tokens from `src/index.css` and `tailwind.config.ts`
+- **NEVER** use direct colors like `text-white`, `bg-blue-500`, `text-red-600`, etc.
+- **ALWAYS** use semantic tokens like `text-foreground`, `bg-background`, `text-muted-foreground`
+- Use HSL color format for all custom colors in the design system
+- Leverage CSS custom properties for theming and consistency
+- Create component variants using class-variance-authority (cva)
+- Prefer design system tokens over custom styles for maintainability
+- Follow mobile-first responsive design approach
+- Maintain proper color contrast ratios for accessibility
+
+### Correct Styling Examples:
+```typescript
+// ✅ Good - Using semantic tokens
+<div className="bg-background text-foreground border border-border">
+<p className="text-muted-foreground">
+
+// ❌ Bad - Direct color usage
+<div className="bg-white text-black border border-gray-200">
+<p className="text-gray-500">
+```
+
+## Component Patterns & Best Practices
+- Use React.forwardRef for components that need ref forwarding
+- Prefer function components over class components
+- Use TypeScript interfaces for prop types with proper typing
+- Export components as named exports (avoid default exports)
+- Use compound component patterns where appropriate
+- Keep components small and focused (single responsibility principle)
+- Use custom hooks for complex logic extraction
+- Implement proper error boundaries for error handling
+- Use React.memo for expensive components to optimize performance
+- Implement proper dependency arrays in useEffect hooks
+- Use meaningful variable and function names that describe their purpose
+- Write components to be easily testable with clear interfaces
+
+### Component Structure Example:
+```typescript
+interface ButtonProps {
+  variant?: 'primary' | 'secondary'
+  size?: 'sm' | 'md' | 'lg'
+  children: React.ReactNode
+}
+
+export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
+  ({ variant = 'primary', size = 'md', children, ...props }, ref) => {
+    return (
+      <button
+        ref={ref}
+        className={cn(buttonVariants({ variant, size }))}
+        {...props}
+      >
+        {children}
+      </button>
+    )
+  }
+)
+Button.displayName = 'Button'
+```
+
+## Spring Boot Backend Rules
+
+### Controller Layer
+- Use `@RestController` for REST API endpoints
+- Version all API paths with `/api/v1/*` pattern
+- Implement proper HTTP status codes and response formats
+- Use `@RequestMapping` at class level for common path prefix
+- Validate request bodies with Jakarta Bean Validation (`@Valid`)
+- Handle `@PathVariable` and `@RequestParam` with proper validation
+- Use `Pageable` for pagination support in list endpoints
+
+### Service Layer
+- Mark business logic classes with `@Service` annotation
+- Keep controllers thin - delegate business logic to services
+- Use `@Transactional` for operations that require database consistency
+- Implement proper exception handling and meaningful error messages
+- Separate read and write operations where applicable
+
+### Repository Layer
+- Extend `MongoRepository<Entity, String>` or `ReactiveMongoRepository` for reactive
+- Use `@Indexed` annotations on frequently queried fields
+- Implement custom repository methods for complex aggregation pipelines
+- Use proper MongoDB query methods (findByFieldName conventions)
+- Consider Atlas Search and Vector Search for advanced search features
+
+### Model/Entity Layer
+- Use `@Document("collection_name")` for MongoDB collections
+- Use `@Id` for primary key fields (typically String for MongoDB)
+- Use `@Indexed(unique = true)` for unique constraints
+- Store dates as `Instant` in UTC timezone
+- Use embedded documents for 1:1 and 1:few relationships
+- Use references (ObjectId) for many:many relationships
+- Include `createdAt` and `updatedAt` fields with default values
+
+### Security & Authentication
+- Configure Spring Security with stateless sessions (`SessionCreationPolicy.STATELESS`)
+- Use `BCryptPasswordEncoder` for password hashing
+- Implement JWT access + refresh token pattern
+- Use `@PreAuthorize` for method-level security
+- Configure CORS properly for frontend integration
+- Secure sensitive endpoints and allow public access to auth endpoints
+
+### Validation & Error Handling
+- Use Jakarta Bean Validation annotations (`@NotNull`, `@Email`, `@Size`, etc.)
+- Implement global exception handling with `@ControllerAdvice`
+- Return consistent error response format with proper HTTP status codes
+- Validate all user inputs on both request and business logic levels
+- Use custom exceptions for business logic errors
+
+### Documentation & Testing
+- Use springdoc-openapi for automatic Swagger/OpenAPI documentation
+- Write unit tests with JUnit 5 and Spring Boot Test
+- Use Testcontainers for integration tests with real MongoDB
+- Test controllers with `@WebMvcTest` and services with `@DataMongoTest`
+- Include tests for security configurations and JWT handling
+
+## Code Quality Standards
+
+### General Guidelines
+- Write clean, readable, and maintainable code
+- Follow established project conventions and patterns
+- Include comprehensive error handling and logging with meaningful error messages
+- Add meaningful comments for complex business logic only (code should be self-documenting)
+- Use descriptive variable and function names that clearly indicate purpose
+- Implement proper TypeScript types throughout with strict mode enabled
+- Use ES6+ features (arrow functions, destructuring, template literals)
+- Prefer const over let, avoid var completely
+- Handle network errors gracefully with proper loading states
+
+### Architecture Patterns
+- **Frontend**: Component-based architecture with clear data flow
+- **Backend**: Clean Architecture with Spring Boot (Controller → Service → Repository → Model)
+- **API**: RESTful design with versioned endpoints (/api/v1/*), OpenAPI/Swagger documentation
+- **Database**: MongoDB Atlas with Spring Data MongoDB, proper indexing strategies
+- **Authentication**: JWT access + refresh tokens, Spring Security stateless sessions
+- **Testing**: Test pyramid approach (unit → integration → e2e)
+
+### Code Style
+- Use consistent indentation (2 spaces for JS/TS/JSON, 4 spaces for Java)
+- Follow language-specific style guides (Google Java Style Guide, Airbnb for JS/TS)
+- Prefer explicit over implicit when it improves clarity
+- Keep methods small and focused on single responsibilities
+- Use meaningful commit messages following conventional commits
+- Use proper Java naming conventions (camelCase for methods/variables, PascalCase for classes)
+
+### Documentation
+- Include JSDoc for all public functions and complex logic
+- Maintain API documentation with examples
+- Document architectural decisions in ADR format
+- Include setup and deployment instructions
+- Document environment variables and configuration
+
+### Security & Performance
+- Validate all user inputs on both frontend and backend
+- Use parameterized queries for database operations
+- Implement proper authentication and authorization
+- Follow OWASP security guidelines
+- Optimize for performance but avoid premature optimization
+- Implement proper caching strategies
+
+## Accessibility Standards
+- Use semantic HTML elements (header, nav, main, section, article)
+- Include proper ARIA attributes for screen readers
+- Ensure keyboard navigation works for all interactive elements
+- Maintain proper color contrast ratios (WCAG 2.1 AA compliance)
+- Use descriptive alt text for images and icons
+- Implement focus management for modals and dynamic content
+- Provide meaningful labels for form elements
+- Use data-testid attributes for testing selectors
+
+## Performance Optimization
+- Lazy load routes and heavy components using React.lazy()
+- Optimize images and assets (use appropriate formats and sizes)
+- Implement proper code splitting strategies
+- Use React Query for efficient server state caching
+- Minimize bundle size with tree shaking
+- Avoid prop drilling by using appropriate state management
+- Implement proper loading states and skeleton screens
+- Consider touch interactions for mobile devices
+
+### Testing Strategy
+
+#### Frontend Testing
+- **Unit Tests**: Test individual functions and components in isolation using Vitest
+- **Component Tests**: Test React components with user interactions using React Testing Library
+- **E2E Tests**: Test critical user journeys with Playwright or Cypress
+- Use data-testid attributes for reliable test selectors
+- Test accessibility features and keyboard navigation
+- Keep business logic separate from UI logic for easier testing
+
+#### Backend Testing
+- **Unit Tests**: Test individual methods with JUnit 5 and Mockito
+- **Integration Tests**: Test API endpoints with `@SpringBootTest` and `@AutoConfigureTestDatabase`
+- **Repository Tests**: Use `@DataMongoTest` for MongoDB repository testing
+- **Controller Tests**: Use `@WebMvcTest` for testing REST controllers in isolation
+- **Testcontainers**: Use Testcontainers for integration tests with real MongoDB instances
+- **Security Tests**: Test Spring Security configurations and JWT handling
+- Test with different Spring profiles (test, integration)
+
+#### General Testing Guidelines
+- Use descriptive test names that explain the behavior being tested (Given_When_Then format)
+- Write components and services to be easily testable with clear, focused responsibilities
+- Mock external dependencies appropriately
+- Test error scenarios and edge cases
+- Maintain test data builders and fixtures for consistent test setup
+
+### Deployment & DevOps
+- Prefer Vercel for frontend + backend hosting.
+- Connect MongoDB Atlas with IP allowlisting or VPC peering.
+- GitHub Actions should handle CI (lint, test, build).
+- Always include Infrastructure as Code for DB setup (Terraform preferred).
+
+#### Docker Configuration
+- **Frontend**: Multi-stage Dockerfile in `frontend/` with Vite build → slim runtime image
+- **Backend**: Multi-stage Dockerfile in `backend/` with Maven build → JAR in slim Java runtime
+- Use docker-compose in project root for local development with frontend, backend, and MongoDB
+- Optimize Docker images for production (minimal base images, layer caching)
+
+#### CI/CD Pipelines
+- **GitHub Actions**: Separate workflows for frontend and backend
+- **Frontend Pipeline**: ESLint, TypeScript check, Vitest tests, build verification
+- **Backend Pipeline**: Maven verify, JUnit + Testcontainers, integration tests
+- **Preview Deployments**: Frontend on Vercel, backend on staging environment
+- Use environment-specific configuration and secrets management
+
+#### Observability & Monitoring
+- **Spring Boot Actuator**: Health checks and metrics endpoints (`/actuator/health`)
+- **Structured Logging**: JSON format in production with correlation IDs
+- **Application Monitoring**: Monitor performance, errors, and business metrics
+- **Database Monitoring**: Monitor MongoDB Atlas performance and queries
+
+#### Production Deployment
+- Container orchestration (Docker Swarm, Kubernetes, or cloud container services)
+- Load balancing and auto-scaling configuration
+- Proper secret management and environment variable injection
+- Database backup and disaster recovery strategies
+- SSL/TLS termination and security headers
+
+## Anti-Patterns to Avoid
+- No direct database access from frontend
+- No business logic in controllers (keep them thin)
+- No hardcoded secrets or configuration values
+- No unvalidated request bodies or parameters
+- No circular dependencies between services
+- No unpaginated queries on large MongoDB collections
+- No logging of sensitive information (passwords, tokens, personal data)
+
+## Spring Boot Code Scaffolds
+
+### Maven POM Configuration
+```xml
+<!-- backend/pom.xml -->
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0
+         http://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+  <groupId>com.example</groupId>
+  <artifactId>selective-eating</artifactId>
+  <version>0.0.1-SNAPSHOT</version>
+  <properties>
+    <java.version>17</java.version>
+    <spring-boot.version>3.2.0</spring-boot.version>
+  </properties>
+  <dependencies>
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-web</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-security</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-data-mongodb</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>org.springdoc</groupId>
+      <artifactId>springdoc-openapi-starter-webmvc-ui</artifactId>
+      <version>2.5.0</version>
+    </dependency>
+    <dependency>
+      <groupId>io.jsonwebtoken</groupId>
+      <artifactId>jjwt-api</artifactId>
+      <version>0.11.5</version>
+    </dependency>
+  </dependencies>
+</project>
+```
+
+### User Model Example
+```java
+package com.example.app.models;
+
+import org.springframework.data.annotation.Id;
+import org.springframework.data.mongodb.core.mapping.Document;
+import org.springframework.data.mongodb.core.index.Indexed;
+import java.time.Instant;
+import java.util.List;
+
+@Document("users")
+public class User {
+    @Id
+    private String id;
+    @Indexed(unique = true)
+    private String email;
+    private String name;
+    private List<String> roles;
+    private Instant createdAt = Instant.now();
+    private Instant updatedAt = Instant.now();
+    // getters/setters
+}
+```
+
+### Repository Interface Example
+```java
+package com.example.app.repositories;
+import com.example.app.models.User;
+import org.springframework.data.mongodb.repository.MongoRepository;
+import java.util.Optional;
+
+public interface UserRepository extends MongoRepository<User, String> {
+    Optional<User> findByEmail(String email);
+}
+```
+
+### Controller Example
+```java
+package com.example.app.controllers;
+
+import com.example.app.models.User;
+import com.example.app.repositories.UserRepository;
+import org.springframework.web.bind.annotation.*;
+import java.util.List;
+
+@RestController
+@RequestMapping("/api/v1/users")
+public class UserController {
+    private final UserRepository repo;
+    public UserController(UserRepository repo) { this.repo = repo; }
+
+    @GetMapping
+    public List<User> all() { return repo.findAll(); }
+
+    @GetMapping("/{id}")
+    public User get(@PathVariable String id) {
+        return repo.findById(id).orElseThrow(() -> new RuntimeException("User not found"));
+    }
+}
+```
+
+### Security Configuration Example
+```java
+package com.example.app.security;
+
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
+import org.springframework.security.config.annotation.web.builders.HttpSecurity;
+import org.springframework.security.config.http.SessionCreationPolicy;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.security.web.SecurityFilterChain;
+
+@Configuration
+public class SecurityConfig {
+
+    @Bean
+    public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
+        http.csrf().disable()
+            .authorizeHttpRequests(auth -> auth
+                .requestMatchers("/api/v1/auth/**", "/swagger-ui/**", "/v3/api-docs/**").permitAll()
+                .anyRequest().authenticated()
+            )
+            .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS));
+        return http.build();
+    }
+
+    @Bean
+    public PasswordEncoder passwordEncoder() {
+        return new BCryptPasswordEncoder();
+    }
+
+    @Bean
+    public AuthenticationManager authenticationManager(AuthenticationConfiguration authConfig) throws Exception {
+        return authConfig.getAuthenticationManager();
+    }
+}
+```
+
+### JWT Utility Example
+```java
+package com.example.app.security;
+
+import io.jsonwebtoken.Jwts;
+import io.jsonwebtoken.SignatureAlgorithm;
+import java.util.Date;
+
+public class JwtUtil {
+    private final String secret;
+    private final long ttlMillis;
+
+    public JwtUtil(String secret, long ttlMillis) {
+        this.secret = secret;
+        this.ttlMillis = ttlMillis;
+    }
+
+    public String generateToken(String subject) {
+        return Jwts.builder()
+                .setSubject(subject)
+                .setIssuedAt(new Date())
+                .setExpiration(new Date(System.currentTimeMillis() + ttlMillis))
+                .signWith(SignatureAlgorithm.HS256, secret)
+                .compact();
+    }
+}
+```
