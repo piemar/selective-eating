@@ -1,7 +1,7 @@
 // API configuration and utilities for backend communication
 
 // Get API base URL from environment variable with fallback
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8081/api/v1';
+const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL || 'http://localhost:8081/api/v1').replace(/\/$/, '');
 
 // Log the API configuration for debugging
 console.log('🌐 API Configuration:', {
@@ -116,7 +116,8 @@ async function fetchApi<T>(endpoint: string, options?: RequestInit): Promise<T> 
   };
   
   const finalOptions = { ...defaultOptions, ...options };
-  const response = await fetch(`${API_BASE_URL}${endpoint}`, finalOptions);
+  const url = `${API_BASE_URL}${endpoint.startsWith('/') ? endpoint : `/${endpoint}`}`;
+  const response = await fetch(url, finalOptions);
   
   if (!response.ok) {
     throw new ApiError(
