@@ -1,45 +1,83 @@
-import { defineConfig } from "vite";
-import react from "@vitejs/plugin-react-swc";
-import path from "path";
-import { componentTagger } from "lovable-tagger";
+spring:
+  profiles:
+    active: ${SPRING_PROFILES_ACTIVE:dev}
+  data:
+    mongodb:
+      uri: ${SPRING_DATA_MONGODB_URI:mongodb://localhost:27017/selective_eating_dev}
+      database: ${SPRING_DATA_MONGODB_DATABASE:selective_eating_dev}
+  security:
+    user:
+      name: admin
+      password: admin
 
-// https://vitejs.dev/config/
-export default defineConfig(({ mode }) => {
-  // Get environment-specific settings
-  const isDev = mode === 'development';
-  const allowedHosts = [
-    "localhost",
-    "127.0.0.1",
-    // Allow all Railway and Vercel subdomains
-    ".railway.app",
-    ".up.railway.app", 
-    ".vercel.app",
-    // Allow custom domains from environment variables
-    ...(process.env.VITE_ALLOWED_HOSTS?.split(',') || [])
-  ].filter(Boolean);
+server:
+  port: 8081
+  servlet:
+    context-path: /api
 
-  return {
-    server: {
-      host: "::",
-      port: parseInt(process.env.VITE_DEV_PORT || "8080"),
-      allowedHosts,
-    },
-    plugins: [
-      react({
-        // Use automatic JSX runtime
-        jsxImportSource: undefined,
-      }), 
-      isDev && componentTagger()
-    ].filter(Boolean),
-    resolve: {
-      alias: {
-        "@": path.resolve(__dirname, "./src"),
-      },
-    },
-    preview: {
-      host: "::",
-      port: parseInt(process.env.VITE_PREVIEW_PORT || "8080"),
-      allowedHosts,
-    },
-  };
-});
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
+      base-path: /actuator
+  endpoint:
+    health:
+      show-details: when-authorized
+
+logging:
+  level:
+    com.example.app: ${LOG_LEVEL:INFO}
+    org.springframework.security: DEBUG
+    org.springframework.data.mongodb: DEBUG
+  pattern:
+    console: "%d{HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n"
+
+app:
+  jwt:
+    access-secret: ${JWT_ACCESS_SECRET:your-256-bit-secret-for-access-tokens-make-it-long-enough}
+    refresh-secret: ${JWT_REFRESH_SECRET:your-256-bit-secret-for-refresh-tokens-make-it-different}
+    access-ttl-seconds: ${JWT_ACCESS_TTL_SECONDS:900}
+    refresh-ttl-seconds: ${JWT_REFRESH_TTL_SECONDS:604800}
+  cors:
+    allowed-origins: ${CORS_ALLOW_ORIGINS:http://localhost:8080,http://localhost:5173}
+
+---
+spring:
+  config:
+    activate:
+      on-profile: dev
+  data:
+    mongodb:
+      uri: mongodb://localhost:27017/selective_eating_dev
+      database: selective_eating_dev
+
+logging:
+  level:
+    com.example.app: DEBUG
+
+---
+spring:
+  config:
+    activate:
+      on-profile: test
+  data:
+    mongodb:
+      uri: mongodb://localhost:27017/selective_eating_test
+      database: selective_eating_test
+
+---
+spring:
+  config:
+    activate:
+      on-profile: prod
+  data:
+    mongodb:
+      uri: ${SPRING_DATA_MONGODB_URI}
+      database: ${SPRING_DATA_MONGODB_DATABASE}
+
+logging:
+  level:
+    com.example.app: INFO
+    org.springframework.security: WARN
+    org.springframework.data.mongodb: WARN
