@@ -1,6 +1,6 @@
 // API configuration and utilities for backend communication
 
-const API_BASE_URL = 'http://localhost:8083/api/api/v1';
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8083/api/api/v1';
 
 // Configuration for mock mode
 const USE_MOCK_DATA = import.meta.env.VITE_USE_MOCK_DATA === 'true' || false;
@@ -291,10 +291,12 @@ export const api = {
 // Helper function to get food image URL
 export const getFoodImageUrl = (food: Food): string => {
   if (food.imageUrl) {
-    // Images are served by the backend ImageController (port 8083)
+    // Images are served by the backend ImageController
     // The imageUrl field contains the path like "image/foods/1_Bos_taurus.jpg"
     // Backend has context-path: /api, so we need to prefix with /api
-    return `http://localhost:8083/api/${food.imageUrl}`;
+    const baseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8083/api/api/v1';
+    const backendBaseUrl = baseUrl.replace('/api/v1', ''); // Remove the API version to get base backend URL
+    return `${backendBaseUrl}/${food.imageUrl}`;
   }
   // Fallback to generate a consistent placeholder based on food number
   return `https://via.placeholder.com/64/f3f4f6/9ca3af?text=${encodeURIComponent(food.name.charAt(0).toUpperCase())}`;
