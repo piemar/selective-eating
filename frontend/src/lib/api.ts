@@ -1,6 +1,32 @@
 // API configuration and utilities for backend communication
 
-const API_BASE_URL = 'http://localhost:8083/api/api/v1';  
+const API_BASE_URL = 'http://localhost:8083/api/api/v1';
+
+// Configuration for mock mode
+const USE_MOCK_DATA = import.meta.env.VITE_USE_MOCK_DATA === 'true' || false;
+
+// Console indicator for developers
+if (USE_MOCK_DATA) {
+  console.log('🎭 Mock Mode Active - Using simulated data instead of backend API');
+  console.log('   To disable: Set VITE_USE_MOCK_DATA=false in .env.local');
+} else {
+  console.log('🌐 Live Mode Active - Using real backend API calls');
+  console.log('   To enable mock mode: Set VITE_USE_MOCK_DATA=true in .env.local');
+}
+
+// Import mock data
+import { 
+  mockFoods, 
+  mockCategories, 
+  mockSuggestions,
+  mockUserExperiences,
+  mockUserStats,
+  getMockFoodsByLanguage,
+  getMockFoodsByCategory,
+  getMockFoodsBySearch,
+  getMockFoodByNumber,
+  simulateApiDelay
+} from './mockData';
 
 // Food types matching backend models
 export interface Food {
@@ -91,62 +117,175 @@ async function fetchApi<T>(endpoint: string, options?: RequestInit): Promise<T> 
 // API functions
 export const api = {
   // Get total food count
-  getFoodCount: () => fetchApi<number>('/foods/count'),
+  getFoodCount: async (): Promise<number> => {
+    if (USE_MOCK_DATA) {
+      await simulateApiDelay();
+      return mockFoods.length;
+    }
+    return fetchApi<number>('/foods/count');
+  },
   
   // Get all food categories
-  getCategories: () => fetchApi<string[]>('/foods/categories'),
+  getCategories: async (): Promise<string[]> => {
+    if (USE_MOCK_DATA) {
+      await simulateApiDelay(300);
+      return mockCategories;
+    }
+    return fetchApi<string[]>('/foods/categories');
+  },
   
   // Get foods by language
-  getFoodsByLanguage: (language: 'en' | 'sv') => 
-    fetchApi<Food[]>(`/foods/language/${language}`),
+  getFoodsByLanguage: async (language: 'en' | 'sv'): Promise<Food[]> => {
+    if (USE_MOCK_DATA) {
+      await simulateApiDelay(800);
+      return getMockFoodsByLanguage(language);
+    }
+    return fetchApi<Food[]>(`/foods/language/${language}`);
+  },
   
   // Search foods by name
-  searchFoods: (searchTerm: string) => 
-    fetchApi<Food[]>(`/foods/search?name=${encodeURIComponent(searchTerm)}`),
+  searchFoods: async (searchTerm: string): Promise<Food[]> => {
+    if (USE_MOCK_DATA) {
+      await simulateApiDelay(400);
+      return getMockFoodsBySearch(searchTerm);
+    }
+    return fetchApi<Food[]>(`/foods/search?name=${encodeURIComponent(searchTerm)}`);
+  },
   
   // Get specific food by number
-  getFoodByNumber: (foodNumber: number) => 
-    fetchApi<Food>(`/foods/${foodNumber}`),
+  getFoodByNumber: async (foodNumber: number): Promise<Food> => {
+    if (USE_MOCK_DATA) {
+      await simulateApiDelay(200);
+      const food = getMockFoodByNumber(foodNumber);
+      if (!food) {
+        throw new Error(`Food with number ${foodNumber} not found`);
+      }
+      return food;
+    }
+    return fetchApi<Food>(`/foods/${foodNumber}`);
+  },
   
   // Get foods by category
-  getFoodsByCategory: (category: string) => 
-    fetchApi<Food[]>(`/foods/category/${encodeURIComponent(category)}`),
+  getFoodsByCategory: async (category: string): Promise<Food[]> => {
+    if (USE_MOCK_DATA) {
+      await simulateApiDelay(600);
+      return getMockFoodsByCategory(category);
+    }
+    return fetchApi<Food[]>(`/foods/category/${encodeURIComponent(category)}`);
+  },
   
   // Get animal-based foods
-  getAnimalFoods: () => fetchApi<Food[]>('/foods/animal'),
+  getAnimalFoods: async (): Promise<Food[]> => {
+    if (USE_MOCK_DATA) {
+      await simulateApiDelay(500);
+      return mockFoods.filter(food => 
+        food.foodCategory.toLowerCase().includes('meat') ||
+        food.foodCategory.toLowerCase().includes('fish') ||
+        food.foodCategory.toLowerCase().includes('poultry') ||
+        food.foodCategory.toLowerCase().includes('dairy') ||
+        food.foodCategory.toLowerCase().includes('milk') ||
+        food.foodCategory.toLowerCase().includes('cheese')
+      );
+    }
+    return fetchApi<Food[]>('/foods/animal');
+  },
   
   // Get plant-based foods  
-  getPlantFoods: () => fetchApi<Food[]>('/foods/plant'),
+  getPlantFoods: async (): Promise<Food[]> => {
+    if (USE_MOCK_DATA) {
+      await simulateApiDelay(500);
+      return mockFoods.filter(food => 
+        food.foodCategory.toLowerCase().includes('fruit') ||
+        food.foodCategory.toLowerCase().includes('vegetable') ||
+        food.foodCategory.toLowerCase().includes('cereal') ||
+        food.foodCategory.toLowerCase().includes('pasta') ||
+        food.foodCategory.toLowerCase().includes('rice') ||
+        food.foodCategory.toLowerCase().includes('bread')
+      );
+    }
+    return fetchApi<Food[]>('/foods/plant');
+  },
   
   // Get popular food suggestions
-  getPopularSuggestions: (maxSuggestions: number = 6) => 
-    fetchApi<FoodSuggestion[]>(`/suggestions/popular?maxSuggestions=${maxSuggestions}`),
+  getPopularSuggestions: async (maxSuggestions: number = 6): Promise<FoodSuggestion[]> => {
+    if (USE_MOCK_DATA) {
+      await simulateApiDelay(600);
+      return mockSuggestions.slice(0, maxSuggestions);
+    }
+    return fetchApi<FoodSuggestion[]>(`/suggestions/popular?maxSuggestions=${maxSuggestions}`);
+  },
   
   // Get personalized suggestions based on liked foods
-  getPersonalizedSuggestions: (likedFoodNumbers: number[], maxSuggestions: number = 5) =>
-    fetchApi<FoodSuggestion[]>('/suggestions', {
+  getPersonalizedSuggestions: async (likedFoodNumbers: number[], maxSuggestions: number = 5): Promise<FoodSuggestion[]> => {
+    if (USE_MOCK_DATA) {
+      await simulateApiDelay(800);
+      // Filter suggestions based on liked foods for more realistic mock data
+      const relevantSuggestions = mockSuggestions.filter(suggestion =>
+        suggestion.basedOnFoods?.some(foodNum => likedFoodNumbers.includes(foodNum))
+      );
+      return relevantSuggestions.length > 0 
+        ? relevantSuggestions.slice(0, maxSuggestions)
+        : mockSuggestions.slice(0, maxSuggestions);
+    }
+    return fetchApi<FoodSuggestion[]>('/suggestions', {
       method: 'POST',
       body: JSON.stringify({ likedFoodNumbers, maxSuggestions }),
-    }),
+    });
+  },
   
   // Log a food experience
-  logFoodExperience: (experience: LogFoodExperienceRequest) =>
-    fetchApi<FoodExperience>('/experiences', {
+  logFoodExperience: async (experience: LogFoodExperienceRequest): Promise<FoodExperience> => {
+    if (USE_MOCK_DATA) {
+      await simulateApiDelay(400);
+      // Create a mock experience response
+      const mockExperience: FoodExperience = {
+        id: `mock-${Date.now()}`,
+        userId: experience.userId,
+        foodNumber: experience.foodNumber,
+        foodName: experience.foodName,
+        rating: experience.rating,
+        notes: experience.notes || '',
+        context: experience.context || '',
+        childAge: '3-5', // Mock child age
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      };
+      return mockExperience;
+    }
+    return fetchApi<FoodExperience>('/experiences', {
       method: 'POST',
       body: JSON.stringify(experience),
-    }),
+    });
+  },
   
   // Get user statistics
-  getUserStats: (userId: string) =>
-    fetchApi<UserStats>(`/experiences/user/${userId}/stats`),
+  getUserStats: async (userId: string): Promise<UserStats> => {
+    if (USE_MOCK_DATA) {
+      await simulateApiDelay(400);
+      return mockUserStats;
+    }
+    return fetchApi<UserStats>(`/experiences/user/${userId}/stats`);
+  },
   
   // Get user's food experiences
-  getUserExperiences: (userId: string) =>
-    fetchApi<FoodExperience[]>(`/experiences/user/${userId}`),
+  getUserExperiences: async (userId: string): Promise<FoodExperience[]> => {
+    if (USE_MOCK_DATA) {
+      await simulateApiDelay(500);
+      return mockUserExperiences;
+    }
+    return fetchApi<FoodExperience[]>(`/experiences/user/${userId}`);
+  },
   
   // Get user's liked food numbers
-  getUserLikedFoods: (userId: string) =>
-    fetchApi<number[]>(`/experiences/user/${userId}/liked-foods`),
+  getUserLikedFoods: async (userId: string): Promise<number[]> => {
+    if (USE_MOCK_DATA) {
+      await simulateApiDelay(300);
+      return mockUserExperiences
+        .filter(exp => exp.rating >= 4)
+        .map(exp => exp.foodNumber);
+    }
+    return fetchApi<number[]>(`/experiences/user/${userId}/liked-foods`);
+  },
 };
 
 // Helper function to get food image URL
