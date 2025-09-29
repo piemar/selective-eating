@@ -4,15 +4,36 @@ import path from "path";
 import { componentTagger } from "lovable-tagger";
 
 // https://vitejs.dev/config/
-export default defineConfig(({ mode }) => ({
-  server: {
-    host: "::",
-    port: 8080,
-  },
-  plugins: [react(), mode === "development" && componentTagger()].filter(Boolean),
-  resolve: {
-    alias: {
-      "@": path.resolve(__dirname, "./src"),
+export default defineConfig(({ mode }) => {
+  // Get environment-specific settings
+  const isDev = mode === 'development';
+  const allowedHosts = [
+    "localhost",
+    "127.0.0.1",
+    // Allow all Railway and Vercel subdomains
+    ".railway.app",
+    ".up.railway.app", 
+    ".vercel.app",
+    // Allow custom domains from environment variables
+    ...(process.env.VITE_ALLOWED_HOSTS?.split(',') || [])
+  ].filter(Boolean);
+
+  return {
+    server: {
+      host: "::",
+      port: parseInt(process.env.VITE_DEV_PORT || "8080"),
+      allowedHosts,
     },
-  },
-}));
+    plugins: [react(), isDev && componentTagger()].filter(Boolean),
+    resolve: {
+      alias: {
+        "@": path.resolve(__dirname, "./src"),
+      },
+    },
+    preview: {
+      host: "::",
+      port: parseInt(process.env.VITE_PREVIEW_PORT || "8080"),
+      allowedHosts,
+    },
+  };
+});
