@@ -25,9 +25,7 @@ export default defineConfig(({ mode }) => {
       allowedHosts,
     },
     plugins: [
-      react({
-        jsxImportSource: 'react'
-      }), 
+      react(), 
       isDev && componentTagger()
     ].filter(Boolean),
     resolve: {
